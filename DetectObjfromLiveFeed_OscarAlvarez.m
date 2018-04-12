@@ -154,7 +154,7 @@ close(negcapture);
 ...detection accuracy, 
 
 ...'NumCascadeStages', 5); The number of stages the object detector will go through.
-negFolder=[pwd '\Safe\Negatives\'];
+negFolder=[pwd '\Negative Images\'];
 trainCascadeObjectDetector('SelectedObjectDetector.xml',posdata,negFolder)
 
 %% Testing the classifier on live video
