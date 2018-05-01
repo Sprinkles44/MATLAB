@@ -2,21 +2,24 @@
 close all;
 clear all;
 clc;
+
 %% Delete video objects
 objects = imaqfind; %find video input objects in memory
 delete(objects); %delete a video input object from memory
+
 %% Open Webcam
 webcamlist
-camera = input('Select camera number.\n');
+camera = input('Select camera column number.\n');
 % camera=1;
+
 %% Selecting Capture Resolution
 % Displays a list of the supported camera capture resolutions
 camerainfo = imaqhwinfo('winvideo',camera);
 reslist = camerainfo.SupportedFormats
 
 % User selects desired video capture resolution
-% usrvidres = input('Input the column number of the desired video resolution you would like to use.\n');
-usrvidres = 8;
+usrvidres = input('Input the column number of the desired video resolution you would like to use.\n');
+% usrvidres = 8;
 res = char(reslist(usrvidres));
 
 %% Setting camera capture settings
@@ -31,22 +34,25 @@ set(vid,'FramesPerTrigger',Inf,'ReturnedColorspace','rgb');
 % Sets how often a frame is grabbed from the video capture. Here it is set to capture every 8 frames.
 vid.FrameGrabInterval=10;
 
+%% Name of object
+objName = input('Name of the object to be detected: ','s');
+
 %% Creating the folders where the captured positive and negative images will be saved.
 
 % Set target path for the folder to save the negative images
-negFolderName = [pwd '\Negative Images\']; 
-posFolderName = [pwd '\Positive Images\'];
+negFolder = [pwd '\Negative Images\']; 
+objFol = [pwd '\' objName '\'];
 % Creates the folders where the positive and negative instances will be saved.
-mkdir(pwd, 'Positive Images'); 
+mkdir(pwd, objName); 
 mkdir(pwd, 'Negative Images'); 
 % Adds the new folders' path to the MATLAB program. This allows access the folders where their contents can be used by the program.
-addpath([pwd '\Positive Images']);
-addpath([pwd '\Negative Images']);
+addpath(objFol);
+addpath(negFolder);
 
-%% Ask to begin positive image aquisition
-input('Press Enter to begin positive image aquisition.\n');    
-    
 %% Taking positive instances from video
+framesToSave = input('Input how many pictures of the object you would like to capture: ');
+input('Press Enter to begin positive image aquisition.\n');  
+
 % Starts the video capture object (the selected camera)
 start(vid);
 
@@ -56,18 +62,16 @@ posCapture=figure('Name','Capturing Positive Images Now','NumberTitle','off');
 
 % Select the amount pictures (frames) that will be saved from the live video. These particular pictures will be saved
 ...into the 'Positive Images' folder where the ROI will be manually selected from each image. 
-framesToSave = 15;
+% framesToSave = 15;
 
 % This while loop will run the video until it has reached the amount of 'framesToSave'
-while(vid.FramesAcquired<=framesToSave)
-    %getsnapshot(vid) will take the positive frames from the video 'vid'
-    
+while(vid.FramesAcquired<=framesToSave)    
     hold on
     
     for i=1:framesToSave
-        % 'pospic' to store the extracted frame
+
         pospic=getsnapshot(vid);        
-        posImageFileName = [posFolderName sprintf('posimg%d',i) '.jpg'];
+        posImageFileName = [objFol sprintf('posimg%d',i) '.jpg'];
         imwrite(pospic, posImageFileName);
         
         imshow(pospic);
@@ -85,13 +89,14 @@ close(posCapture);
 %% Labeling the objects (selecting the ROIs from the positive instances
 % We need to go through the images we just saved and label the object.
    
-% Load the Training Image Labeler.  
-... Select positive ROIs from each captured image and export the positive ROIs as "posdata"
-... You can be as precise selecting the ROIs as you feel. 
-imageLabeler;
-input('Label the objects and export the labels to the Workspace as a table and name it "posdata". Press ENTER when completed.\n');  
+% Loading the MATLAB Image Labeler application.  
+... Select positive ROIs from each captured image and export the positive ROIs as a table named "posdata"
+trainingImageLabeler;
+msgbox('Create a label. Select and label the object in each picture. EXPORT the labels to the WORKSPACE as a TABLE and name it "posdata".');  
 
 %% Capture negative images from video (images that do not contain the object to be detected)
+framestoSave = input('Negative images are images that do not contain the object that is to be detected.\nInput the number of negative images to take: ');
+
 % Creating figure window and setting its name 
 negcapture=figure('Name','Capturing Negative Images Now','NumberTitle','off');
 
@@ -99,7 +104,7 @@ negcapture=figure('Name','Capturing Negative Images Now','NumberTitle','off');
 start(vid);
 
 % Select the number of frames you would like to save as negative instances.
-framesToSave = 200;
+% framesToSave = 200;
 
 % Runs the video and captures the desired number of negative images.
 ...Saves the negative images to the folder that was created earlier.
@@ -112,7 +117,7 @@ while(vid.FramesAcquired<=framesToSave)
 		% Captures frame from video to be used
         negpic=getsnapshot(vid);        
 	    % Prepares the name of the captured frame as 'negimg(1, 2, 3, and so on).jpg' which will be saved to the 'Negative Images' folder
-        negImageFileName = [negFolderName sprintf('negimg%d',i) '.jpg'];
+        negImageFileName = [negFolder sprintf('negimg%d',i) '.jpg'];
 		% Saves the captured frame using the created 'negImageFileName' information
         imwrite(negpic, negImageFileName);
         % Shows the frame that was captured and saved
@@ -136,8 +141,8 @@ close(negcapture);
 ...The 'posdata' file created earlier from exporting the positive ROIs
 ...The 'posdata' struct has the location of the positive image locations.
 
-% Loading the object ROI data set
-% posdata = load('posdata.mat');
+% Loading the object ROI data set 
+% posdata = load('posdata.mat');  <<< UNCOMMENT IF IMAGE LABELS WERE EXPORTED TO FILE.
 
 %% Training the 'trainCascadeObjectDetector'.
 
@@ -152,10 +157,8 @@ close(negcapture);
 ...result in longer training and detection times. Higher values for FalseAlarmRate
 ...can require a greater number of cascade stages to achieve reasonable
 ...detection accuracy, 
-
 ...'NumCascadeStages', 5); The number of stages the object detector will go through.
-negFolder=[pwd '\Negative Images\'];
-trainCascadeObjectDetector('SelectedObjectDetector.xml',posdata,negFolder)
+trainCascadeObjectDetector('ObjectDetector.xml',posdata,negFolder)
 
 %% Testing the classifier on live video
 
@@ -166,17 +169,17 @@ vid.FrameGrabInterval=3;
 liveFeedDetection = figure('Name','Live Feed Detection','NumberTitle','off');
 
 % Load the newly-trained detector
-objectDetector = vision.CascadeObjectDetector('SelectedObjectDetector.xml');
+objectDetector = vision.CascadeObjectDetector('ObjectDetector.xml');
 
 % Start video object in the figure window
 start(vid);
 
 % Choose the duration of the live feed in frames captured 
-framesToView = 500;
+% framesToView = 500;
 
 % While loop that will process each frame from the live video feed.
 ...This loop will detect the object in each frame, framing and labeling the object.
-while(vid.FramesAcquired <= framesToView)
+while True
 	hold on
 	% Begin video processing
 	for i=1:framesToView
@@ -185,7 +188,7 @@ while(vid.FramesAcquired <= framesToView)
 		% Collects coordinate data from the objectDetector surrounding the object in each frame
 		bbox = objectDetector.step(snip);
 		% Creates the box frame around each detected object and labels the box
-		objLabeled = insertObjectAnnotation(snip,'rectangle',bbox,'Object','Color','blue');
+		objLabeled = insertObjectAnnotation(snip,'rectangle',bbox,objName,'Color','blue');
 		% Displays the frame that was processed
 		imshow(objLabeled);
 	end

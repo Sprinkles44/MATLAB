@@ -1,0 +1,17 @@
+************************ README for **************************
+*********** DetectObjfromLiveFeed_OscarAlvarez.m *************
+
+This program requires MATLAB's:
+-Computer Vision System Toolbox.
+-Image Acquisition Toolbox
+
+
+This program is used to train an object detector and then use the object detector to detect an object in live video.
+
+
+Instructions:
+1. Set up the object that you would like to be detected.
+2. Set up the camera so that the object is the only thing in the frame.
+3. Properly connect compatible camera to computer.
+4. Run DetectObjfromLiveFeed_OscarAlvarez.m
+
